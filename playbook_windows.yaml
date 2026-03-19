@@ -1,0 +1,51 @@
+---
+- name: Mantenimiento y Configuración de Equipos Windows
+  hosts: windows_servers
+  gather_facts: yes
+  tasks:
+
+    # 1. VERIFICAR USO DE CPU
+    # Usamos un comando de PowerShell para obtener el promedio de carga actual
+    - name: Obtener el porcentaje de uso de CPU actual
+      ansible.windows.win_powershell:
+        script: |
+          (Get-WmiObject Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average
+      register: cpu_usage
+
+    - name: Mostrar el uso de CPU
+      ansible.builtin.debug:
+        msg: "El uso actual de la CPU es del {{ cpu_usage.output[0] }}%"
+
+    # 2. CHEQUEAR SERVICIOS CRÍTICOS
+    # Verificamos que el servicio de Spooler (Cola de impresión) esté corriendo como ejemplo
+    - name: Verificar estado del servicio de Cola de Impresión (Spooler)
+      ansible.windows.win_service:
+        name: Spooler
+        state: started
+      register: service_status
+
+    # 3. CREAR USUARIO "ECUADOR"
+    - name: Crear el usuario local 'ecuador'
+      ansible.windows.win_user:
+        name: ecuador
+        description: "Usuario de administración local"
+        password: "{{ 'TuPasswordSeguro123!' | string }}"
+        state: present
+        groups:
+          - Users
+          - Administrators
+
+    # 4. ACTUALIZAR EL SISTEMA OPERATIVO
+    # Este módulo busca, descarga e instala actualizaciones de seguridad y críticas
+    - name: Instalar todas las actualizaciones de seguridad pendientes
+      ansible.windows.win_updates:
+        category_names:
+          - SecurityUpdates
+          - CriticalUpdates
+          - UpdateRollups
+        state: installed
+      register: update_result
+
+    - name: Reiniciar si es necesario tras las actualizaciones
+      ansible.windows.win_reboot:
+        when: update_result.reboot_required
