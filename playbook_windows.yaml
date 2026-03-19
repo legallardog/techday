@@ -49,3 +49,5 @@
     - name: Reiniciar si es necesario tras las actualizaciones
       ansible.windows.win_reboot:
         when: update_result.reboot_required
+        reboot_required
+        
